@@ -1,9 +1,11 @@
 import Veterinario from "../models/Veterinario.js";
 import generarJWT from "../helpers/generarJWT.js";
 import generarId from "../helpers/generarId.js";
+import emailRegistro from "../helpers/emailRegistro.js";
+import emailOlvidePassword from "../helpers/emailOlvidePassword.js";
 
 const registrar = async (req, res) => {
-  const { email } = req.body;
+  const { email, nombre } = req.body;
   // Prevenir usuarios duplicados
   const existeUsuario = await Veterinario.findOne({ email });
   if (existeUsuario) {
@@ -15,6 +17,13 @@ const registrar = async (req, res) => {
     const veterinario = new Veterinario(req.body);
     const veterinarioGuardado = await veterinario.save();
 
+    //Enviar email
+    emailRegistro({
+      email,
+      nombre,
+      token: veterinarioGuardado.token,
+    });
+
     res.json(veterinarioGuardado);
   } catch (error) {
     console.log(error);
@@ -23,7 +32,7 @@ const registrar = async (req, res) => {
 
 const perfil = (req, res) => {
   const { veterinario } = req;
-  res.json({ perfil: veterinario });
+  res.json(veterinario);
 };
 
 const confirmar = async (req, res) => {
@@ -70,7 +79,7 @@ const autenticar = async (req, res) => {
     res.json({ token: generarJWT(usuario.id) });
   } else {
     const error = new Error("El password es incorrecto");
-    console.log({ msg: error.message });
+    return res.status(403).json({ msg: error.message });
   }
 };
 
@@ -86,6 +95,13 @@ const olvidePassword = async (req, res) => {
   try {
     existeVeterinario.token = generarId();
     await existeVeterinario.save();
+
+    emailOlvidePassword({
+      email,
+      nombre: existeVeterinario.nombre,
+      token: existeVeterinario.token,
+    });
+
     res.json({ msg: "Compruebe su email para restablecer su contraseña" });
   } catch (error) {
     console.log(error);
@@ -118,7 +134,7 @@ const nuevoPassword = async (req, res) => {
     veterinario.token = null;
     veterinario.password = password;
     await veterinario.save();
-    res.json({ mes: "Password modificado correctamente" });
+    res.json({ msg: "Password modificado correctamente" });
   } catch (error) {
     console.log(error);
   }
